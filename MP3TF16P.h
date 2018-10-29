@@ -9,6 +9,7 @@
 #endif
 #include "SoftwareSerial.h"
 
+
 #define MP3_BAUD 9600
 #define MP3_COMMAND_BUFFER_SIZE 10
 #define MP3_RETURN_BUFFER_SIZE 	20  // Actually, 10 is enough, just for saftey
@@ -21,6 +22,7 @@ class MP3TF16P {
     public:
         MP3TF16P(SoftwareSerial *ssData);
         MP3TF16P(SoftwareSerial *ssData, HardwareSerial *hsDebug);
+        
         ~MP3TF16P();
 		bool setDebug(bool debug);
         void begin();
@@ -50,6 +52,7 @@ class MP3TF16P {
 
     private:
         void initObject(SoftwareSerial *ssData, HardwareSerial *hsDebug);
+       
         inline void resetCommandBuffer() { memcpy(_buf, MP3_CMD, MP3_COMMAND_BUFFER_SIZE); }
         inline void resetReturnBuffer() { memset(_retBuf, 0, MP3_RETURN_BUFFER_SIZE); _retCnt = 0; }
         inline bool sendCommand() { return sendCommand(false); }
@@ -58,7 +61,7 @@ class MP3TF16P {
         void clearRxBuffer();
         bool checkReturn();
         SoftwareSerial *_ss;
-        HardwareSerial *_dbg;
+        HardwareSerial *_dbg;        
         bool _enableDebug;
         byte _buf[MP3_COMMAND_BUFFER_SIZE];
         byte _retBuf[MP3_RETURN_BUFFER_SIZE];  
