@@ -17,17 +17,20 @@ SSD1306AsciiWire oled; //Global Variable
 ///////////////////////HC-SR04 OLED BEGIN//////////////////////////
 #define TRIG_PIN 7
 #define ECHO_PIN 8
-#define ULTRASOUND_CHECK_FREQ 300
+#define ULTRASOUND_CHECK_FREQ 1500
 unsigned long ultrasoundLastCheck = 0;
+long duration;
+int distance;
 ///////////////////////HC-SR04 OLED END//////////////////////////
 
 ///////////////////////MP3 END//////////////////////////
 #define MAXFILE 2
 SoftwareSerial ss(10,11);
 MP3TF16P mp3(&ss, &Serial);
-int mp3FileNamePlay = -1;
+int mp3FileName2Play = 0;
 #define MP3_CHECK_FREQ 1500
 unsigned long mp3LastCheck = 0;
+unsigned long songStartTime;
 ///////////////////////mp3 END//////////////////////////
 
 void initOLED(){
@@ -50,47 +53,91 @@ void initHCSR04(){
   
 }
 void initMP3TF16P(){
-    mp3.setDebug(true);
+    mp3.setDebug(false);
     mp3.begin();
     mp3.stop();
     delay(10);
-    mp3.setAmplification(false, 0);
-    mp3.setVol(1);
+    mp3.setAmplification(true, 3);
+    mp3.setVol(20);
     delay(10);
 }
 
-void playSong(unsigned long currentMicros){
-  if ((currentMicros - ultrasoundLastCheck) < MP3_CHECK_FREQ){
+void playSong(){
+   uint8_t playStatus = mp3.getPlayStatus();
+  if(playStatus == 8){
+    oled.println("[OFFLINE]");
     return;
+  }else if (playStatus == 1){
+    unsigned long elapse = (millis() - songStartTime) / 1000;
+    oled.setCursor(0, 2); //col, row
+    oled.print ("Elapse time:");
+    oled.println(elapse);
+    return;
+  }else if (playStatus == 2){
+    mp3.play();
+    oled.println("[RESUME]");
+  }else if (playStatus == 0){
+   if(++mp3FileName2Play > MAXFILE){
+      mp3FileName2Play = 1;
+    }
+    mp3.playMp3File(mp3FileName2Play);
+    songStartTime = millis();
+    oled.clear();
+    oled.print("playMp3File #");
+    oled.println(mp3FileName2Play);
   }else{
-    ultrasoundLastCheck = currentMicros;
-  }  
+    oled.clear();
+    oled.print("[ERROR]");
+    oled.println(playStatus);
+  }
+}
+void stopSong(){
+  mp3.pause();
+  oled.clear();
+  oled.println("PAUSED");
+}
+void loopSong(unsigned long currentMillis){
+  if ((currentMillis - mp3LastCheck) < MP3_CHECK_FREQ){
+    return;
+  }
+  
+  mp3LastCheck = currentMillis;
+ 
   uint8_t playStatus = mp3.getPlayStatus();
   //playStatus 1 Playing
     //playStatus 2 Paused
     //playStatus 0 Stopped
     //playStatus 8 no device online / sleeping
   if(playStatus == 8){
+    oled.clear();
     oled.println("[OFFLINE]");
     return;
   }else if (playStatus == 1){
-    oled.println("[PLAYING]");
+    unsigned long elapse = (millis() - songStartTime) / 1000;
+    oled.setCursor(0, 2); //col, row
+    oled.print ("Elapse time:");
+    oled.println(elapse);
     return;
   }else if (playStatus == 2){
     mp3.play();
     oled.println("[PAUSED] mp3.play()");
   }else if (playStatus == 0){
-    oled.println("[STOPPED] playMp3File");
-    ++mp3FileNamePlay;
-    mp3FileNamePlay = mp3FileNamePlay % MAXFILE;
-    mp3.playMp3File(mp3FileNamePlay);
+   if(++mp3FileName2Play > MAXFILE){
+      mp3FileName2Play = 1;
+    }
+    mp3.playMp3File(mp3FileName2Play);
+    songStartTime = millis();
+    oled.clear();
+    oled.print("playMp3File #");
+    oled.println(mp3FileName2Play);
   }else{
+    oled.clear();
     oled.print("[ERROR]");
     oled.println(playStatus);
   }
 }
 
-void ultraSoundDetect(){
+int ultraSoundDetect(){
   // Clears the trigPin
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
@@ -107,6 +154,7 @@ void ultraSoundDetect(){
   // Prints the distance on the Serial Monitor
   Serial.print("Distance: ");
   Serial.println(distance);
+  return distance;
 }
 void setup() {
     Serial.begin(115200);
@@ -123,10 +171,15 @@ void setup() {
 }
 
 void loop() {
-    oled.println("test");
     uint8_t playStatus = mp3.getPlayStatus();
-    playSong();
-    ultraSoundDetect();
-    oled.println("Keep going!");
+    unsigned long current = millis();
+    if ((current - ultrasoundLastCheck) >= ULTRASOUND_CHECK_FREQ){
+      ultrasoundLastCheck = current;
+      if( ultraSoundDetect() < 50){
+        playSong();
+      }else{
+        stopSong();
+      }
+    }
     delay(1000);
 }
