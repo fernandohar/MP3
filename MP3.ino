@@ -13,11 +13,25 @@
 SSD1306AsciiWire oled; //Global Variable
 //SSD1306 OLED END
 
+
+//POT
+#define POT_PIN  7
+int potReading = 0;
+int setVolume = 0;
+int currentVolume = 0;
+//PIR
+#define PIR_PIN  2              // choose the input pin (for PIR sensor)
+int pirState = LOW;             // we start, assuming no motion detected
+int val = 0;                    // variable for reading the pin status
+
+//mp3
 #define MAXFILE 2
 SoftwareSerial ss(10,11);
 MP3TF16P mp3(&ss, &Serial);
 int mp3FileName2Play = 0;
 unsigned long songStartTime;
+
+
 void initOLED(){
  Wire.begin();
  Wire.setClock(400000L);
@@ -39,10 +53,50 @@ void initMP3TF16P(){
     mp3.stop();
     delay(100);
     mp3.setAmplification(false, 0);
-    mp3.setVol(20);
+    mp3.setVol(10);
     delay(100);
+    mp3.setDebug(false);
 }
 
+void checkPot(){
+ potReading = analogRead(POT_PIN);
+ //Serial.print("potReading:"); Serial.print (potReading);
+ potReading = min(800, analogRead(POT_PIN)); 
+  
+ setVolume = max(0,min(30, (800 - potReading)));
+ if(abs(currentVolume - setVolume) > 2){
+  mp3.setVol( setVolume );
+  currentVolume = setVolume;
+  uint8_t mp3_Vol = mp3.getVol();
+  delay(10);
+  Serial.print("Volume:"); Serial.println(mp3_Vol);
+ }
+ // mp3.setVol( volume );
+ 
+}
+
+void checkPIR(){
+  val = digitalRead(PIR_PIN);  // read input value
+  if (val == HIGH) {            // check if the input is HIGH
+    
+    if (pirState == LOW) {
+      // we have just turned on
+      Serial.println("Motion detected!");
+      // We only want to print on the output change, not state
+      playSong();
+      pirState = HIGH;
+    }
+  } else {
+   
+    if (pirState == HIGH){
+      // we have just turned of
+      Serial.println("Motion ended!");
+      // We only want to print on the output change, not state
+      
+      pirState = LOW;
+    }
+  }
+}
 void playSong(){
   uint8_t playStatus = mp3.getPlayStatus();
   //playStatus 1 Playing
@@ -77,6 +131,7 @@ void playSong(){
     oled.println(playStatus);
   }
 }
+
 void setup() {
     Serial.begin(115200);   
         
@@ -90,8 +145,9 @@ void setup() {
 }
 
 void loop() {
-    uint8_t playStatus = mp3.getPlayStatus();
-    playSong();
-    
-    delay(1000);
+    //uint8_t playStatus = mp3.getPlayStatus();
+    //playSong();
+    checkPot();
+    checkPIR();
+    //delay(1000);
 }
