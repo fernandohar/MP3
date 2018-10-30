@@ -27,7 +27,7 @@ void initOLED(){
  oled.set2X();
  oled.println("  OLED  ");
  oled.println("DEBUGGER");
- delay(5000);
+ //delay(5000);
  oled.clear();
  oled.set1X();
  oled.setScroll(true);
@@ -37,10 +37,10 @@ void initMP3TF16P(){
     mp3.setDebug(true);
     mp3.begin();
     mp3.stop();
-    delay(10);
+    delay(100);
     mp3.setAmplification(false, 0);
     mp3.setVol(20);
-    delay(10);
+    delay(100);
 }
 
 void playSong(){
